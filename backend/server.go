@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/google/go-github/v58/github"
 	"github.com/gorilla/mux"
@@ -22,9 +23,10 @@ type WorkflowRun struct {
 
 var WorkflowRuns []WorkflowRun
 
-var owner = "kyledeanreinford"
-var repo = "doraproject"
-var branch = "main"
+var owner string
+var repo string
+var branch string
+var help bool
 
 func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
@@ -85,6 +87,16 @@ func handleRequests() {
 }
 
 func main() {
+	flag.StringVar(&owner, "o", "kyledeanreinford", "Repository owner")
+	flag.StringVar(&repo, "r", "doraproject", "Repository name")
+	flag.StringVar(&branch, "b", "main", "Branch name")
+	flag.BoolVar(&help, "help", false, "Help")
+	flag.Parse()
+
+	if help {
+		flag.PrintDefaults()
+	}
+
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Fatalf("Error loading .env file")
