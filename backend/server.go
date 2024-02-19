@@ -28,7 +28,11 @@ var repo string
 var branch string
 var help bool
 
-func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
+func getAllWorkflows(w http.ResponseWriter, r *http.Request) {
+	log.Print("Getting all workflows")
+
+	WorkflowRuns = nil
+
 	ctx := context.Background()
 	client := github.NewClient(nil).WithAuthToken(os.Getenv("GH_AUTH"))
 
@@ -53,7 +57,26 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err := json.NewEncoder(w).Encode(WorkflowRuns)
+	if err != nil {
+		return
+	}
+}
+
+func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	log.Print("Getting latest workflow")
+
+	ctx := context.Background()
+	client := github.NewClient(nil).WithAuthToken(os.Getenv("GH_AUTH"))
+
+	opts := &github.ListWorkflowRunsOptions{Branch: branch}
+
+	workflowRuns, _, workflowErr := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
+
+	if workflowErr != nil {
+		fmt.Printf("\nerror: %v\n", workflowErr)
+		return
+	}
 
 	var workflowRun = WorkflowRun{
 		Status:       workflowRuns.WorkflowRuns[0].GetStatus(),
@@ -66,14 +89,6 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	err := json.NewEncoder(w).Encode(workflowRun)
 	if err != nil {
 		log.Print("Error encoding workflow")
-		return
-	}
-}
-
-func getAllWorkflows(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("getAllWorkflows")
-	err := json.NewEncoder(w).Encode(WorkflowRuns)
-	if err != nil {
 		return
 	}
 }
