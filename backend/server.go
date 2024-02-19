@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/go-github/v58/github"
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 	"log"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 )
@@ -22,13 +22,17 @@ type WorkflowRun struct {
 
 var WorkflowRuns []WorkflowRun
 
+var owner = "kyledeanreinford"
+var repo = "doraproject"
+var branch = "main"
+
 func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	client := github.NewClient(nil).WithAuthToken(os.Getenv("GH_AUTH"))
 
-	opts := &github.ListWorkflowRunsOptions{Branch: "main"}
+	opts := &github.ListWorkflowRunsOptions{Branch: branch}
 
-	workflowRuns, _, workflowErr := client.Actions.ListRepositoryWorkflowRuns(ctx, "kyledeanreinford", "doraproject", opts)
+	workflowRuns, _, workflowErr := client.Actions.ListRepositoryWorkflowRuns(ctx, owner, repo, opts)
 
 	for _, workflowRun := range workflowRuns.WorkflowRuns {
 		var newWorkflow = WorkflowRun{
