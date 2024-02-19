@@ -7,16 +7,17 @@ import (
 	"github.com/google/go-github/v58/github"
 	"github.com/joho/godotenv"
 	"log"
+	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 )
 
 type WorkflowRun struct {
 	Status       string `json:"Status"`
-	ReleaseCount int `json:"Release Count"`
+	ReleaseCount int    `json:"Release Count"`
 	Velocity     string `json:"Velocity"`
 	Volatility   string `json:"Volatility"`
-	WorkflowId   int64 `json:"Workflow ID"`
+	WorkflowId   int64  `json:"Workflow ID"`
 }
 
 var WorkflowRuns []WorkflowRun
@@ -29,6 +30,18 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 
 	workflowRuns, _, workflowErr := client.Actions.ListRepositoryWorkflowRuns(ctx, "kyledeanreinford", "doraproject", opts)
 
+	for _, workflowRun := range workflowRuns.WorkflowRuns {
+		var newWorkflow = WorkflowRun{
+			Status:       workflowRun.GetStatus(),
+			ReleaseCount: workflowRun.GetRunNumber(),
+			Velocity:     "mildly volatile",
+			Volatility:   "super fast",
+			WorkflowId:   workflowRun.GetWorkflowID(),
+		}
+
+		WorkflowRuns = append(WorkflowRuns, newWorkflow)
+	}
+
 	if workflowErr != nil {
 		fmt.Printf("\nerror: %v\n", workflowErr)
 		return
@@ -37,11 +50,11 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	log.Print("Getting latest workflow")
 
 	var workflowRun = WorkflowRun{
-		Status: workflowRuns.WorkflowRuns[0].GetStatus(),
+		Status:       workflowRuns.WorkflowRuns[0].GetStatus(),
 		ReleaseCount: workflowRuns.WorkflowRuns[0].GetRunNumber(),
-		Velocity: "mildly volatile",
-		Volatility: "super fast",
-		WorkflowId: workflowRuns.WorkflowRuns[0].GetWorkflowID(),
+		Velocity:     "mildly volatile",
+		Volatility:   "super fast",
+		WorkflowId:   workflowRuns.WorkflowRuns[0].GetWorkflowID(),
 	}
 
 	err := json.NewEncoder(w).Encode(workflowRun)
@@ -53,13 +66,18 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 
 func getAllWorkflows(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("getAllWorkflows")
-	json.NewEncoder(w).Encode(WorkflowRuns)
+	err := json.NewEncoder(w).Encode(WorkflowRuns)
+	if err != nil {
+		return
+	}
 }
 
 func handleRequests() {
-	http.HandleFunc("/", getLatestWorkflow)
-	http.HandleFunc("/workflows", getAllWorkflows)
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	myRouter := mux.NewRouter().StrictSlash(true)
+
+	myRouter.HandleFunc("/", getLatestWorkflow)
+	myRouter.HandleFunc("/workflows", getAllWorkflows)
+	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
 
 func main() {
