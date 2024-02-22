@@ -8,17 +8,18 @@ import (
 	"github.com/google/go-github/v58/github"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"io"
 	"log"
 	"net/http"
 	"os"
 )
 
 type WorkflowRun struct {
-	Status       string `json:"Status"`
-	ReleaseCount int    `json:"Release Count"`
-	Velocity     string `json:"Velocity"`
-	Volatility   string `json:"Volatility"`
-	WorkflowId   int64  `json:"Workflow ID"`
+	Status       string
+	ReleaseCount int
+	Velocity     string
+	Volatility   string
+	WorkflowId   int64
 }
 
 var WorkflowRuns []WorkflowRun
@@ -93,17 +94,68 @@ func getLatestWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Repo struct {
+	Name string
+	Owner  string
+	Branch string
+	Auth string
+}
+
+func getRepoWorkflows(w http.ResponseWriter, r *http.Request) {
+	reqBody, _ := io.ReadAll(r.Body)
+	var repo Repo
+	err := json.Unmarshal(reqBody, &repo)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+
+	WorkflowRuns = nil
+
+	ctx := context.Background()
+	client := github.NewClient(nil).WithAuthToken(repo.Auth)
+
+	opts := &github.ListWorkflowRunsOptions{Branch: repo.Branch}
+
+	workflowRuns, _, workflowErr := client.Actions.ListRepositoryWorkflowRuns(ctx, repo.Owner, repo.Name, opts)
+
+	for _, workflowRun := range workflowRuns.WorkflowRuns {
+		var newWorkflow = WorkflowRun{
+			Status:       workflowRun.GetStatus(),
+			ReleaseCount: workflowRun.GetRunNumber(),
+			Velocity:     "mildly volatile",
+			Volatility:   "super fast",
+			WorkflowId:   workflowRun.GetWorkflowID(),
+		}
+
+		WorkflowRuns = append(WorkflowRuns, newWorkflow)
+	}
+
+	if workflowErr != nil {
+		fmt.Printf("\nerror: %v\n", workflowErr)
+		return
+	}
+
+	encodeErr := json.NewEncoder(w).Encode(WorkflowRuns)
+	if encodeErr != nil {
+		return
+	}
+
+	fmt.Printf("Here's a repo: %v", repo)
+}
+
 func handleRequests() {
 	myRouter := mux.NewRouter().StrictSlash(true)
 
 	myRouter.HandleFunc("/", getLatestWorkflow)
 	myRouter.HandleFunc("/workflows", getAllWorkflows)
+	myRouter.HandleFunc("/getRepoWorkflows", getRepoWorkflows).Methods("POST")
 	log.Fatal(http.ListenAndServe(":8080", myRouter))
 }
 
 func main() {
 	flag.StringVar(&owner, "o", "kyledeanreinford", "Repository owner")
-	flag.StringVar(&repo, "r", "doraproject", "Repository name")
+	flag.StringVar(&repo, "r", "goAnon", "Repository name")
 	flag.StringVar(&branch, "b", "main", "Branch name")
 	flag.BoolVar(&help, "help", false, "Help")
 	flag.Parse()
