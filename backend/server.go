@@ -108,7 +108,10 @@ func getAllWorkflows(w http.ResponseWriter, r *http.Request) {
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode("This is the homepage")
+	err := json.NewEncoder(w).Encode("This is the homepage")
+	if err != nil {
+		return
+	}
 }
 
 func handleRequests() {
